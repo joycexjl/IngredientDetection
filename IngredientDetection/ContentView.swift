@@ -13,10 +13,10 @@ struct ContentView: View {
     
     var body: some View {
         ZStack {
-            CameraView(detectionStore: detectionStore)
+            ControllerView()
                 .edgesIgnoringSafeArea(.all)
             
-            DetectionBoxesView(detections: detectionStore.detections)
+            // DetectionBoxesView(detections: detectionStore.detections)
         }
     }
 }

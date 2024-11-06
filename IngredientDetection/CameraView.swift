@@ -81,7 +81,7 @@ struct CameraView: UIViewRepresentable {
             do {
                 let config = MLModelConfiguration()
                 config.computeUnits = .all // Adjust if needed
-                let model = try yolo11x(configuration: config)
+                let model = try yolo11m(configuration: config)
                 self.visionModel = try VNCoreMLModel(for: model.model)
             } catch {
                 fatalError("Failed to load Core ML model: \(error)")
