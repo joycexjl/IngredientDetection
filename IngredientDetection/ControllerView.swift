@@ -26,6 +26,10 @@ class VisionObjectRecognitionViewController: ViewController {
     // Vision parts
     internal var requests = [VNRequest]()
     
+    // Add properties for timing control
+    private var lastProcessingTime: TimeInterval = 0
+    private let minimumTimeInterval: TimeInterval = 1.0  // One second between frames
+    
     override func setupAVCapture() {
         print("VisionObjectRecognitionViewController - setupAVCapture started")
         super.setupAVCapture()
@@ -36,33 +40,30 @@ class VisionObjectRecognitionViewController: ViewController {
         setupVision()
         print("VisionObjectRecognitionViewController - Vision setup complete")
     }
-//    
-//    // interval detection timer
-//    func startDetectionTimer() {
-//        // stop current detection timer
-//        stopDetectionTimer()
-//        
-//        // create new detection timer, trigger every 0.5 second
-//        detectionTimer = Timer.scheduledTimer(
-//            withTimeInterval: 0.2,
-//            repeats: true
-//        ) { [weak self] _ in
-//            self?.processCurrentFrame(sampleBuffer: sampleBuffer)
-//        }
-//    }
     
-//    // stop detection timer
-//    func stopDetectionTimer() {
-//        detectionTimer?.invalidate()
-//        detectionTimer = nil
-//    }
+    override func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
+        let currentTime = CACurrentMediaTime()
+        
+        // Check if enough time has passed since last processing
+        guard (currentTime - lastProcessingTime) >= minimumTimeInterval else {
+            return  // Skip this frame if not enough time has passed
+        }
+        
+        // Process frame and update last processing time
+        processCurrentFrame(sampleBuffer: sampleBuffer)
+        lastProcessingTime = currentTime
+    }
     
     func processCurrentFrame(sampleBuffer: CMSampleBuffer) {
-        // If processing current frame, skip this frame
-        guard !isProcessingFrame else { return }
+        // If already processing a frame, skip this one
+        guard !isProcessingFrame else {
+            print("Skipping frame - still processing previous frame")
+            return 
+        }
         
-        // Mark processing
+        // Mark processing started
         isProcessingFrame = true
+        print("Processing new frame at time: \(CACurrentMediaTime())")
         
         // Get pixel buffer from sample buffer
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
@@ -77,13 +78,14 @@ class VisionObjectRecognitionViewController: ViewController {
             orientation: .up,
             options: [:]
         )
+        
         do {
             try imageRequestHandler.perform(self.requests)
         } catch {
             print("Failed to process video frame: \(error)")
         }
         
-        // Mark processing done
+        // Mark processing complete
         isProcessingFrame = false
     }
     
@@ -136,6 +138,7 @@ class VisionObjectRecognitionViewController: ViewController {
         detectionOverlay.sublayers = nil
         let viewWidth = detectionOverlay.bounds.width
         let viewHeight = detectionOverlay.bounds.height
+        detectionOverlay.sublayers?.forEach { $0.removeFromSuperlayer() }
         
         // get top 5 detections
         for detection in detections {
@@ -255,7 +258,7 @@ class VisionObjectRecognitionViewController: ViewController {
         var boundingBoxes: [Detection] = []
         boundingBoxes.reserveCapacity(100)  // 预估容量
 
-        // 遍��所有预测框
+        // for all boxes
         for i in 0..<numBoxes {  // 根据你的模型调整
             // 找出最高置信度的类别
             for j in 0..<numClasses {
@@ -270,7 +273,7 @@ class VisionObjectRecognitionViewController: ViewController {
                   vDSP_Length(numClasses))
 
             // 如果置信度超过阈值
-            if maxScore > 0.1 {  // 根据需要调整阈值
+            if maxScore > 0.5 {  // 根据需要调整阈值
                 // 获取边界框坐标
                 let x = Float(truncating: multiArray[[0, 0, i] as [NSNumber]])
                 let y = Float(truncating: multiArray[[0, 1, i] as [NSNumber]])
@@ -349,17 +352,17 @@ class VisionObjectRecognitionViewController: ViewController {
         return shapeLayer
     }
     
-    override func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
-        processCurrentFrame(sampleBuffer: sampleBuffer)
-    }
-    
     func setupLayers() {
-        detectionOverlay = CALayer() // container layer that has all the renderings of the observations
+        // Remove existing detection overlay if it exists
+        detectionOverlay?.removeFromSuperlayer()
+        
+        // Create new detection overlay
+        detectionOverlay = CALayer()
         detectionOverlay.name = "DetectionOverlay"
         detectionOverlay.bounds = CGRect(x: 0.0,
-                                         y: 0.0,
-                                         width: bufferSize.width,
-                                         height: bufferSize.height)
+                                       y: 0.0,
+                                       width: bufferSize.width,
+                                       height: bufferSize.height)
         detectionOverlay.position = CGPoint(x: rootLayer.bounds.midX, y: rootLayer.bounds.midY)
         rootLayer.addSublayer(detectionOverlay)
     }
