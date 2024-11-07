@@ -8,6 +8,8 @@
 import UIKit
 import AVFoundation
 import Vision
+import CoreML
+import Accelerate
 
 class VisionObjectRecognitionViewController: ViewController {
     
@@ -16,8 +18,10 @@ class VisionObjectRecognitionViewController: ViewController {
         let boundingBox: CGRect
         let confidence: Float
         let classLabel: String
-        let color: CGColor
     }
+
+    private var detectionTimer: Timer?
+    private var isProcessingFrame = false
     
     // Vision parts
     internal var requests = [VNRequest]()
@@ -32,122 +36,268 @@ class VisionObjectRecognitionViewController: ViewController {
         setupVision()
         print("VisionObjectRecognitionViewController - Vision setup complete")
     }
+//    
+//    // interval detection timer
+//    func startDetectionTimer() {
+//        // stop current detection timer
+//        stopDetectionTimer()
+//        
+//        // create new detection timer, trigger every 0.5 second
+//        detectionTimer = Timer.scheduledTimer(
+//            withTimeInterval: 0.2,
+//            repeats: true
+//        ) { [weak self] _ in
+//            self?.processCurrentFrame(sampleBuffer: sampleBuffer)
+//        }
+//    }
+    
+//    // stop detection timer
+//    func stopDetectionTimer() {
+//        detectionTimer?.invalidate()
+//        detectionTimer = nil
+//    }
+    
+    func processCurrentFrame(sampleBuffer: CMSampleBuffer) {
+        // If processing current frame, skip this frame
+        guard !isProcessingFrame else { return }
+        
+        // Mark processing
+        isProcessingFrame = true
+        
+        // Get pixel buffer from sample buffer
+        guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
+            print("Failed to get pixel buffer")
+            isProcessingFrame = false
+            return
+        }
+        
+        // Process current frame
+        let imageRequestHandler = VNImageRequestHandler(
+            cvPixelBuffer: pixelBuffer,
+            orientation: .up,
+            options: [:]
+        )
+        do {
+            try imageRequestHandler.perform(self.requests)
+        } catch {
+            print("Failed to process video frame: \(error)")
+        }
+        
+        // Mark processing done
+        isProcessingFrame = false
+    }
     
     @discardableResult
     func setupVision() -> NSError? {
         // Setup Vision parts
         let error: NSError! = nil
-        
         do {
+            print("setupVision")
             let config = MLModelConfiguration()
             config.computeUnits = .all
-
+            
             guard let model = try? yolo11m(configuration: config) else {
+                print("Failed to create model instance")
                 fatalError("Failed to create model instance")
             }
-
+            
             let visionModel = try VNCoreMLModel(for: model.model)
-            let objectRecognition = VNCoreMLRequest(model: visionModel, completionHandler: { (request, error) in
-                DispatchQueue.main.async(execute: {
-                    // perform all the UI updates on the main queue
-                    if let results = request.results {
-//                        print("VisionObjectRecognitionViewController - Drawing \(results.count) results")
-                        // —————————————————————— DEBUG —————————————————————— //
-//                         print("raw results: ", results) // 打印原始结果
-
-                        self.drawVisionRequestResults(results)
+            
+            let objectRecognition = VNCoreMLRequest(model: visionModel) { [weak self] request, error in
+                guard let self = self else { return }
+                
+                DispatchQueue.main.async {
+                    if let results = request.results as? [VNCoreMLFeatureValueObservation],
+                       let observation = results.first,
+                       let multiArray = observation.featureValue.multiArrayValue {
+                        // print("multiArray: ", multiArray)
+                        // multiArray:  Float32 1 × 84 × 8400 array
+                        
+                        self.setupLayers()
+                        // 处理 YOLO 输出并直接绘制
+                        let detections = self.processYOLOOutput(multiArray)
+                        self.drawDetections(detections)
                     }
-                })
-            })
+                }
+            }
             self.requests = [objectRecognition]
-            print("VisionObjectRecognitionViewController - Vision setup completed successfully")
-        } catch let error as NSError {
-            print("Model loading went wrong: \(error)")
+            
+        } catch {
+            fatalError("Failed to load Vision ML model: \(error)")
         }
-        
         return error
     }
-
     
-    
-    func drawVisionRequestResults(_ results: [Any]) {
+    func drawDetections(_ detections: [Detection]) {
         CATransaction.begin()
         CATransaction.setValue(kCFBooleanTrue, forKey: kCATransactionDisableActions)
-        detectionOverlay.sublayers = nil // remove all the old recognized objects
         
-        // Process Vision results
-        if let observation = results.first as? VNCoreMLFeatureValueObservation,
-           let multiArray = observation.featureValue.multiArrayValue {
-            print("Processing YOLO output with shape: \(multiArray.shape)")
+        // 清除现有的检测层
+        detectionOverlay.sublayers = nil
+        let viewWidth = detectionOverlay.bounds.width
+        let viewHeight = detectionOverlay.bounds.height
+        
+        // get top 5 detections
+        for detection in detections {
+            print("start drawing detections")
+            print(detection)  // TODO
+            let convertedBox = CGRect(
+                x: detection.boundingBox.minX * viewWidth,
+                y: detection.boundingBox.minY * viewHeight,
+                width: detection.boundingBox.width * viewWidth,
+                height: detection.boundingBox.height * viewHeight
+            )
+
+            // detection bounding box
+            let boxLayer = CALayer()
+            boxLayer.frame = convertedBox
+            boxLayer.borderColor = UIColor.green.cgColor
+            boxLayer.backgroundColor = UIColor.clear.cgColor
+            boxLayer.borderWidth = 3
+            boxLayer.cornerRadius = 4
             
-            let detections = processYOLOOutput(multiArray)
-            
-            // Draw each detection
-            for detection in detections {
-                let objectBounds = VNImageRectForNormalizedRect(detection.boundingBox, 
-                                                              Int(bufferSize.width), 
-                                                              Int(bufferSize.height))
-                
-                let shapeLayer = createRoundedRectLayerWithBounds(objectBounds, color: detection.color)
-                let textLayer = createTextSubLayerInBounds(objectBounds,
-                                                         identifier: detection.classLabel,
-                                                         confidence: detection.confidence)
-                
-                shapeLayer.addSublayer(textLayer)
-                detectionOverlay.addSublayer(shapeLayer)
-            }
+            // 创建标签图层
+            let textLayer = createTextLayerInBounds(convertedBox,
+                                                    identifier: detection.classLabel,
+                                                    confidence: detection.confidence)
+
+            // 添加图层
+            detectionOverlay.addSublayer(boxLayer)
+            detectionOverlay.addSublayer(textLayer)
         }
         
-        self.updateLayerGeometry()
         CATransaction.commit()
+        
+        // updateLayerGeometry()
     }
     
-    func processYOLOOutput(_ multiArray: MLMultiArray) -> [Detection] {
-        var detections: [Detection] = []
-        let numClasses = 80
+    func drawVisionRequestResults(_ results: [Any]) {
+        // Remove existing detection overlays
+        self.detectionOverlay.sublayers = nil
+
+        for observation in results where observation is VNRecognizedObjectObservation {
+            guard let objectObservation = observation as? VNRecognizedObjectObservation else {
+                continue
+            }
+            //—————————————————————— DEBUG ——————————————————————//
+            print(observation)
+            //—————————————————————— DEBUG ——————————————————————//
+
+            // Select the label with the highest confidence
+            let topLabelObservation = objectObservation.labels[0]
+            let objectBounds = VNImageRectForNormalizedRect(objectObservation.boundingBox,
+                                                            Int(self.bufferSize.width),
+                                                            Int(self.bufferSize.height))
+
+            // Create shape layer
+            let shapeLayer = self.createRoundedRectLayerWithBounds(objectBounds)
+
+            // Create text layer
+            let textLayer = self.createTextLayerInBounds(objectBounds,
+                                                          identifier: topLabelObservation.identifier,
+                                                          confidence: topLabelObservation.confidence)
+
+            shapeLayer.addSublayer(textLayer)
+            self.detectionOverlay.addSublayer(shapeLayer)
+        }
+
+        self.updateLayerGeometry()
+    }
+
+    func applyNMS(_ boxes: [Detection], iouThreshold: Float = 0.45) -> [Detection] {
+        var selected: [Detection] = []
         
-        // Process each of the 8400 predictions
-        for i in 0..<8400 {
-            var maxClassScore: Float = 0
-            var maxClassIndex = 0
+        // 只处理置信度排序后的前100个框
+        for detection in boxes.prefix(100) {
+            var shouldSelect = true
             
-            // Find the class with highest confidence
-            for j in 0..<numClasses {
-                let score = Float(truncating: multiArray[[0, 4 + j, i] as [NSNumber]])
-                if score > maxClassScore {
-                    maxClassScore = score
-                    maxClassIndex = j
+            // 检查是否与已选择的框重叠
+            for selectedBox in selected {
+                let iou = calculateIOU(detection.boundingBox, selectedBox.boundingBox)
+                if iou > iouThreshold {
+                    // 如果重叠度高，且当前框置信度更高，替换已选择的框
+                    if detection.confidence > selectedBox.confidence {
+                        if let index = selected.firstIndex(where: { $0.boundingBox == selectedBox.boundingBox }) {
+                            selected[index] = detection
+                            shouldSelect = false
+                            break
+                        }
+                    } else {
+                        shouldSelect = false
+                        break
+                    }
                 }
             }
             
-            // If confidence exceeds threshold
-            if maxClassScore > 0.25 {  // Adjust threshold as needed
-                // Get bounding box coordinates
+            if shouldSelect {
+                selected.append(detection)
+            }
+            
+            // 如果已经选择了足够多的框，就停止处理
+            if selected.count >= 5 {
+                break
+            }
+        }
+        return selected
+    }
+
+    
+    func processYOLOOutput(_ multiArray: MLMultiArray) -> [Detection] {
+        var detections: [Detection] = []
+        let numClasses = 80  // 根据你的模型调整
+        let numAttributes = numClasses + 4  // 类别数 + 边界框坐标
+        let numBoxes = 8400
+
+        let dataPointer = multiArray.dataPointer.assumingMemoryBound(to: Float.self)
+        var classScores = [Float](repeating: 0, count: numClasses)
+        var maxScore: Float = 0
+        var maxIndex: vDSP_Length = 0
+        var boundingBoxes: [Detection] = []
+        boundingBoxes.reserveCapacity(100)  // 预估容量
+
+        // 遍��所有预测框
+        for i in 0..<numBoxes {  // 根据你的模型调整
+            // 找出最高置信度的类别
+            for j in 0..<numClasses {
+                classScores[j] = dataPointer[4 * numBoxes + j * numBoxes + i]
+            }
+
+            // find max score and index
+            vDSP_maxvi(classScores,
+                  vDSP_Stride(1),
+                  &maxScore,
+                  &maxIndex,
+                  vDSP_Length(numClasses))
+
+            // 如果置信度超过阈值
+            if maxScore > 0.1 {  // 根据需要调整阈值
+                // 获取边界框坐标
                 let x = Float(truncating: multiArray[[0, 0, i] as [NSNumber]])
                 let y = Float(truncating: multiArray[[0, 1, i] as [NSNumber]])
                 let w = Float(truncating: multiArray[[0, 2, i] as [NSNumber]])
                 let h = Float(truncating: multiArray[[0, 3, i] as [NSNumber]])
+                // 归一化坐标 (确保所有值在0-1之间)
+                let normalizedX = CGFloat(x) / 640.0  // 模型输入宽度
+                let normalizedY = CGFloat(y) / 640.0  // 模型输入高度
+                let normalizedW = CGFloat(w) / 640.0
+                let normalizedH = CGFloat(h) / 640.0
                 
-                // Convert to normalized coordinates
-                let boundingBox = CGRect(x: CGFloat(x - w/2),
-                                       y: CGFloat(y - h/2),
-                                       width: CGFloat(w),
-                                       height: CGFloat(h))
-                
-                let classLabel = getClassLabel(maxClassIndex)
-                // ------------------ DEBUG ------------------ //
-                print(classLabel)
-                let color = getColorForCategory(classLabel)
-                
+                // 创建边界框，注意中心点坐标转换为左上角坐标
+                let boundingBox = CGRect(
+                    x: max(0, min(1, normalizedX - normalizedW/2)),
+                    y: max(0, min(1, normalizedY - normalizedH/2)),
+                    width: max(0, min(1, normalizedW)),
+                    height: max(0, min(1, normalizedH))
+                )
+
                 detections.append(Detection(boundingBox: boundingBox,
-                                         confidence: maxClassScore,
-                                         classLabel: classLabel,
-                                            color: color.cgColor))
+                                         confidence: maxScore,
+                                         classLabel: getClassLabel(Int(maxIndex))))
             }
         }
         
-//        print("Detected \(detections.count) objects")
-        return detections
+        print("detected \(detections.count) objects")
+        return applyNMS(detections.sorted { $0.confidence > $1.confidence })
     }
     
     func getClassLabel(_ index: Int) -> String {
@@ -186,7 +336,6 @@ class VisionObjectRecognitionViewController: ViewController {
            return UIColor.yellow
        }
    }
-
     
     func createRoundedRectLayerWithBounds(_ bounds: CGRect, color: CGColor? = nil) -> CALayer {
         let shapeLayer = CALayer()
@@ -201,19 +350,7 @@ class VisionObjectRecognitionViewController: ViewController {
     }
     
     override func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
-//        print("VisionObjectRecognitionViewController - Processing new frame")
-        guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
-            print("VisionObjectRecognitionViewController - Failed to get pixel buffer")
-            return
-        }
-        
-        let imageRequestHandler = VNImageRequestHandler(cvPixelBuffer: pixelBuffer, orientation: exifOrientationFromDeviceOrientation(), options: [:])
-        do {
-            try imageRequestHandler.perform(self.requests)
-//            print("VisionObjectRecognitionViewController - Vision requests performed successfully")
-        } catch {
-            print("VisionObjectRecognitionViewController - Failed to perform image request: \(error)")
-        }
+        processCurrentFrame(sampleBuffer: sampleBuffer)
     }
     
     func setupLayers() {
@@ -227,45 +364,50 @@ class VisionObjectRecognitionViewController: ViewController {
         rootLayer.addSublayer(detectionOverlay)
     }
     
+    func calculateIOU(_ box1: CGRect, _ box2: CGRect) -> Float {
+        let intersection = box1.intersection(box2)
+        let union = box1.union(box2)
+        
+        guard !intersection.isNull && !union.isNull else { return 0 }
+        let intersectionArea = intersection.width * intersection.height
+        let unionArea = union.width * union.height
+        
+        return Float(intersectionArea / unionArea)
+    }
+
     func updateLayerGeometry() {
-        let bounds = rootLayer.bounds
-        var scale: CGFloat
-        
-        let xScale: CGFloat = bounds.size.width / bufferSize.height
-        let yScale: CGFloat = bounds.size.height / bufferSize.width
-        
-        scale = fmax(xScale, yScale)
-        if scale.isInfinite {
-            scale = 1.0
-        }
-        CATransaction.begin()
-        CATransaction.setValue(kCFBooleanTrue, forKey: kCATransactionDisableActions)
-        
-        // rotate the layer into screen orientation and scale and mirror
-        detectionOverlay.setAffineTransform(CGAffineTransform(rotationAngle: CGFloat(.pi / 2.0)).scaledBy(x: scale, y: -scale))
-        // center the layer
-        detectionOverlay.position = CGPoint(x: bounds.midX, y: bounds.midY)
-        
-        CATransaction.commit()
-        
+        let bounds = self.rootLayer.bounds
+        // var scale: CGFloat = 1.0
+        let scale = bounds.size.width / view.bounds.size.width
+        let transform = CGAffineTransform(scaleX: scale, y: scale) 
+        self.detectionOverlay.setAffineTransform(CGAffineTransform(scaleX: scale, y: -scale))
+        self.detectionOverlay.position = CGPoint(x: bounds.midX, y: bounds.midY)
     }
     
-    func createTextSubLayerInBounds(_ bounds: CGRect, identifier: String, confidence: VNConfidence) -> CATextLayer {
+    func createTextLayerInBounds(_ bounds: CGRect, identifier: String, confidence: VNConfidence) -> CATextLayer {
         let textLayer = CATextLayer()
-        textLayer.name = "Object Label"
-        let formattedString = NSMutableAttributedString(string: String(format: "\(identifier)\nConfidence:  %.2f", confidence))
-        let largeFont = UIFont(name: "Helvetica", size: 24.0)!
-        formattedString.addAttributes([NSAttributedString.Key.font: largeFont], range: NSRange(location: 0, length: identifier.count))
-        textLayer.string = formattedString
-        textLayer.bounds = CGRect(x: 0, y: 0, width: bounds.size.height - 10, height: bounds.size.width - 10)
-        textLayer.position = CGPoint(x: bounds.midX, y: bounds.midY)
-        textLayer.shadowOpacity = 0.7
-        textLayer.shadowOffset = CGSize(width: 2, height: 2)
-        textLayer.foregroundColor = CGColor(colorSpace: CGColorSpaceCreateDeviceRGB(), components: [0.0, 0.0, 0.0, 1.0])
-        textLayer.contentsScale = 2.0 // retina rendering
-        // rotate the layer into screen orientation and scale and mirror
-        textLayer.setAffineTransform(CGAffineTransform(rotationAngle: CGFloat(.pi / 2.0)).scaledBy(x: 1.0, y: -1.0))
+        let labelText = String(format: "%@ %.1f%%",
+                        identifier,
+                        confidence * 100)
+        textLayer.string = labelText    
+        textLayer.fontSize = 14
+        textLayer.foregroundColor = UIColor.white.cgColor
+        textLayer.backgroundColor = UIColor.black.cgColor
+        textLayer.alignmentMode = .center
+        textLayer.bounds = CGRect(x: 0, y: 0, width: bounds.size.width, height: 20)
+        textLayer.position = CGPoint(x: bounds.midX, y: bounds.minY - 10)
+
+        let textWidth = (labelText as NSString).size(withAttributes: [
+                .font: UIFont.systemFont(ofSize: 20)
+            ]).width + 20
+
+        textLayer.frame = CGRect(
+            x: bounds.minX,
+            y: max(0, bounds.minY - 20),  // 确保不会超出屏幕顶部
+            width: min(textWidth, bounds.width),
+            height: 20
+        )
+        textLayer.contentsScale = UIScreen.main.scale
         return textLayer
     }
-    
 }
