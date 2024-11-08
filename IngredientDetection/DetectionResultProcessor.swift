@@ -80,8 +80,9 @@ class DetectionResultProcessor {
     
     // MARK: - extract Detections from MLMultiArray
     private func extractDetections(from multiArray: MLMultiArray) -> [Detection] {
-        let classScores = [Float](repeating: 0, count: Constants.classLabels.count)
         let dataPointer = multiArray.dataPointer.assumingMemoryBound(to: Float.self)
+        
+        var classScores = [Float](repeating: 0, count: Constants.classLabels.count)
         var detections: [Detection] = []
         detections.reserveCapacity(100)
         
