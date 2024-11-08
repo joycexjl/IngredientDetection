@@ -13,15 +13,15 @@ import Accelerate
 
 class VisionObjectRecognitionViewController: ViewController {
     
-    private var detectionOverlay: CALayer! = nil
+    var detectionOverlay: CALayer! = nil
     struct Detection {
         let boundingBox: CGRect
         let confidence: Float
         let classLabel: String
     }
 
-    private var detectionTimer: Timer?
-    private var isProcessingFrame = false
+    var detectionTimer: Timer?
+    var isProcessingFrame = false
     
     // Vision parts
     internal var requests = [VNRequest]()
@@ -52,6 +52,11 @@ class VisionObjectRecognitionViewController: ViewController {
         // Process frame and update last processing time
         processCurrentFrame(sampleBuffer: sampleBuffer)
         lastProcessingTime = currentTime
+    }
+    
+    func processCurrentFrame() {
+        // Default implementation for camera processing
+        // This will be overridden by VideoViewController for video processing
     }
     
     func processCurrentFrame(sampleBuffer: CMSampleBuffer) {
