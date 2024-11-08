@@ -16,7 +16,7 @@ struct Detection {
 private enum Constants {
     static let numBoxes = 8400
     static let modelInputSize: CGFloat = 640.0
-    static let defaultConfidenceThreshold: Float = 0.5
+    static let defaultConfidenceThreshold: Float = 0.2
     static let defaultMaxDetections = 10
     static let defaultIOUThreshold: Float = 0.45
     
@@ -81,7 +81,7 @@ class DetectionResultProcessor {
     // MARK: - extract Detections from MLMultiArray
     private func extractDetections(from multiArray: MLMultiArray) -> [Detection] {
         let dataPointer = multiArray.dataPointer.assumingMemoryBound(to: Float.self)
-        
+
         var classScores = [Float](repeating: 0, count: Constants.classLabels.count)
         var detections: [Detection] = []
         detections.reserveCapacity(100)
@@ -141,14 +141,12 @@ class DetectionResultProcessor {
         return detections
             .sorted { $0.confidence > $1.confidence }
             .prefix(maxDetections)
-            .map { $0 }
     }
     
     private func applyNMS(to detections: [Detection]) -> [Detection] {
         var result: [Detection] = []
-        let sortedDetections = detections.sorted { $0.confidence > $1.confidence }
         
-        for detection in sortedDetections {
+        for detection in detections {
             var shouldSelect = true
             
             for selectedDetection in result {
