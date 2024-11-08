@@ -8,7 +8,7 @@
 import SwiftUI
 import AVFoundation
 
-struct ContentView: View {
+struct CameraView: View {
     var body: some View {
         VisionObjectRecognitionViewControllerRepresentable()
             .edgesIgnoringSafeArea(.all)
