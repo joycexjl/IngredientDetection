@@ -12,7 +12,6 @@ import CoreML
 import Accelerate
 
 class VisionObjectRecognitionViewController: ViewController {
-    var shouldSetupAVCapture: Bool { return true }  // TODO: make base controller class
     
     var detectionOverlay: CALayer! = nil
     struct Detection {
@@ -33,9 +32,7 @@ class VisionObjectRecognitionViewController: ViewController {
     
     override func setupAVCapture() {
         print("VisionObjectRecognitionViewController - setupAVCapture started")
-        if shouldSetupAVCapture {   
-            super.setupAVCapture()
-        }
+        super.setupAVCapture()
         
         print("VisionObjectRecognitionViewController - Setting up Vision components")
         setupLayers()
