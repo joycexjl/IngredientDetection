@@ -154,11 +154,13 @@ class VisionObjectRecognitionViewController: ViewController {
     func drawDetections(_ detections: [Detection]) {
         CATransaction.begin()
         CATransaction.setValue(kCFBooleanTrue, forKey: kCATransactionDisableActions)
+
+        let safeAreaInsets = view.safeAreaInsets // 刘海（？）
         
         // 清除现有的检测层
         detectionOverlay.sublayers = nil
         let viewWidth = detectionOverlay.bounds.width
-        let viewHeight = detectionOverlay.bounds.height
+        let viewHeight = detectionOverlay.bounds.height - safeAreaInsets.bottom - safeAreaInsets.top
         detectionOverlay.sublayers?.forEach { $0.removeFromSuperlayer() }
         
         // get top 5 detections
