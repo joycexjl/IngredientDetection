@@ -26,23 +26,7 @@ class ViewController: UIViewController, AVCaptureVideoDataOutputSampleBufferDele
     override func viewDidLoad() {
         super.viewDidLoad()
         print("ViewController - viewDidLoad started")
-        
-        // Create the preview view programmatically
-        previewView = UIView(frame: view.bounds)
-        previewView.contentMode = .scaleAspectFill
-        view.addSubview(previewView)
-        print("ViewController - Preview view created and added")
-        
-        // Add constraints to make preview view fill the entire view
-        previewView.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            previewView.topAnchor.constraint(equalTo: view.topAnchor),
-            previewView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-            previewView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            previewView.trailingAnchor.constraint(equalTo: view.trailingAnchor)
-        ])
-        
-        print("ViewController - Setting up AV capture")
+
         setupAVCapture()
     }
     

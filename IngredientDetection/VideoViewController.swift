@@ -108,7 +108,6 @@ class VideoViewController: VisionObjectRecognitionViewController {
         detectionOverlay.zPosition = 999
         
         rootLayer.addSublayer(detectionOverlay)
-        updateLayerGeometry()
     }
     
     // MARK: - Timer Management
