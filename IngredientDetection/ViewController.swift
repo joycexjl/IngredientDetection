@@ -15,8 +15,8 @@ class ViewController: UIViewController, AVCaptureVideoDataOutputSampleBufferDele
     
     var bufferSize: CGSize = .zero
     var rootLayer: CALayer! = nil
+    var previewView: UIView!
     
-    private var previewView: UIView!
     private let session = AVCaptureSession()
     private var previewLayer: AVCaptureVideoPreviewLayer! = nil
     private let videoDataOutput = AVCaptureVideoDataOutput()
@@ -26,23 +26,7 @@ class ViewController: UIViewController, AVCaptureVideoDataOutputSampleBufferDele
     override func viewDidLoad() {
         super.viewDidLoad()
         print("ViewController - viewDidLoad started")
-        
-        // Create the preview view programmatically
-        previewView = UIView(frame: view.bounds)
-        previewView.contentMode = .scaleAspectFill
-        view.addSubview(previewView)
-        print("ViewController - Preview view created and added")
-        
-        // Add constraints to make preview view fill the entire view
-        previewView.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            previewView.topAnchor.constraint(equalTo: view.topAnchor),
-            previewView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-            previewView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            previewView.trailingAnchor.constraint(equalTo: view.trailingAnchor)
-        ])
-        
-        print("ViewController - Setting up AV capture")
+
         setupAVCapture()
     }
     
@@ -160,120 +144,3 @@ class ViewController: UIViewController, AVCaptureVideoDataOutputSampleBufferDele
     }
 }
 
-class VideoViewController: VisionObjectRecognitionViewController {
-    // MARK: - Properties
-    private var videoPlayer: AVPlayer?
-    private var videoOutput: AVPlayerItemVideoOutput?
-    private var videoURL: URL = URL(fileURLWithPath: "/Users/shangyunle/Downloads/video.mp4")
-    
-    // MARK: - View Lifecycle
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        setupLocalVideo()
-        setupVision()
-        setupLayers()
-    }
-    
-    override func viewWillDisappear(_ animated: Bool) {
-        super.viewWillDisappear(animated)
-        stopDetectionTimer()
-        videoPlayer?.pause()
-    }
-    
-    // MARK: - Video Setup
-    private func setupLocalVideo() {
-        print("Setting up local video")
-        let playerItem = AVPlayerItem(url: videoURL)
-        
-        let settings = [String(kCVPixelBufferPixelFormatTypeKey): kCVPixelFormatType_32BGRA]
-        videoOutput = AVPlayerItemVideoOutput(pixelBufferAttributes: settings)
-        playerItem.add(videoOutput!)
-        
-        videoPlayer = AVPlayer(playerItem: playerItem)
-        
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            let playerLayer = AVPlayerLayer(player: self.videoPlayer)
-            playerLayer.frame = self.view.bounds
-            playerLayer.videoGravity = .resizeAspectFill
-            self.rootLayer = self.view.layer
-            self.rootLayer.addSublayer(playerLayer)
-            
-            self.videoPlayer?.play()
-            self.startDetectionTimer()
-        }
-    }
-    
-    // MARK: - Frame Processing
-    override func processCurrentFrame() {
-        guard !isProcessingFrame,
-              let output = videoOutput else { return }
-        
-        videoPlayer?.pause()
-        
-        let itemTime = videoPlayer?.currentItem?.currentTime() ?? .zero
-        guard output.hasNewPixelBuffer(forItemTime: itemTime),
-              let pixelBuffer = output.copyPixelBuffer(forItemTime: itemTime, itemTimeForDisplay: nil) else {
-            videoPlayer?.play()
-            return
-        }
-        
-        isProcessingFrame = true
-        
-        let imageRequestHandler = VNImageRequestHandler(
-            cvPixelBuffer: pixelBuffer,
-            orientation: .up,
-            options: [:]
-        )
-        
-        do {
-            try imageRequestHandler.perform(self.requests)
-        } catch {
-            print("Failed to process video frame: \(error)")
-        }
-        
-        isProcessingFrame = false
-        videoPlayer?.play()
-    }
-    
-    // MARK: - Layer Setup
-    override func setupLayers() {
-        guard rootLayer != nil else {
-            rootLayer = view.layer
-            return
-        }
-        
-        detectionOverlay?.removeFromSuperlayer()
-        
-        guard let playerLayer = view.layer.sublayers?.first(where: { $0 is AVPlayerLayer }) as? AVPlayerLayer else {
-            print("Error: AVPlayerLayer not found")
-            return
-        }
-        
-        let videoRect = playerLayer.videoRect
-        detectionOverlay = CALayer()
-        detectionOverlay.name = "DetectionOverlay"
-        detectionOverlay.frame = videoRect
-        detectionOverlay.position = CGPoint(x: videoRect.midX, y: videoRect.midY)
-        detectionOverlay.anchorPoint = CGPoint(x: 0.5, y: 0.5)
-        detectionOverlay.zPosition = 999
-        
-        view.layer.addSublayer(detectionOverlay)
-    }
-    
-    // MARK: - Timer Management
-    private func startDetectionTimer() {
-        stopDetectionTimer()
-        detectionTimer = Timer.scheduledTimer(
-            withTimeInterval: 0.2,
-            repeats: true
-        ) { [weak self] _ in
-            self?.processCurrentFrame()
-        }
-    }
-    
-    private func stopDetectionTimer() {
-        detectionTimer?.invalidate()
-        detectionTimer = nil
-    }
-}
