@@ -1,3 +1,9 @@
+import UIKit
+import CoreML
+import Vision
+import Accelerate
+
+
 // MARK: - Models
 struct Detection {
     let boundingBox: CGRect
