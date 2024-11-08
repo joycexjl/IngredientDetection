@@ -17,7 +17,7 @@ class VideoViewController: VisionObjectRecognitionViewController {
     private var videoOutput: AVPlayerItemVideoOutput?
     private var videoURL: URL = URL(fileURLWithPath: "/Users/shangyunle/Downloads/video.mp4")
 
-    var shouldSetupAVCapture = false  // TODO: make base controller class
+    var shouldSetupAVCapture: Bool { return false }  // TODO: make base controller class
     
     // MARK: - View Lifecycle
     override func viewDidLoad() {

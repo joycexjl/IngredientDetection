@@ -12,8 +12,7 @@ import CoreML
 import Accelerate
 
 class VisionObjectRecognitionViewController: ViewController {
-    
-    var shouldSetupAVCapture = true  // TODO: make base controller class
+    var shouldSetupAVCapture: Bool { return true }  // TODO: make base controller class
     
     var detectionOverlay: CALayer! = nil
     struct Detection {
