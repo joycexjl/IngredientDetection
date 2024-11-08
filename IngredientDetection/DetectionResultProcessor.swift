@@ -141,6 +141,7 @@ class DetectionResultProcessor {
         return detections
             .sorted { $0.confidence > $1.confidence }
             .prefix(maxDetections)
+            .map { $0 } 
     }
     
     private func applyNMS(to detections: [Detection]) -> [Detection] {
