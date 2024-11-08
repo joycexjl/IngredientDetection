@@ -15,7 +15,8 @@ class VideoViewController: VisionObjectRecognitionViewController {
     // MARK: - Properties
     private var videoPlayer: AVPlayer?
     private var videoOutput: AVPlayerItemVideoOutput?
-    private var videoURL: URL = URL(fileURLWithPath: "/Users/shangyunle/Downloads/video.mp4")
+
+    let videoURL: URL
 
     // MARK: - View Lifecycle
     override func setupAVCapture() {

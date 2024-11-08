@@ -21,22 +21,22 @@ struct MainView: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 30) {
-                Text("食材检测")
+                Text("Ingredient Detection")
                     .font(.largeTitle)
                     .fontWeight(.bold)
                 
                 NavigationLink(destination: CameraView()) {
                     DetectionOptionButton(
-                        title: "相机检测",
-                        subtitle: "实时检测食材",
+                        title: "Camera Detection",
+                        subtitle: "Detect ingredients from camera",
                         systemImage: "camera.fill"
                     )
                 }
                 
                 NavigationLink(destination: VideoContentView()) {
                     DetectionOptionButton(
-                        title: "视频检测",
-                        subtitle: "从视频中检测食材",
+                        title: "Video Detection",
+                        subtitle: "Detect ingredients from video",
                         systemImage: "video.fill"
                     )
                 }
