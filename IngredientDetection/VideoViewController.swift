@@ -21,7 +21,6 @@ class VideoViewController: VisionObjectRecognitionViewController {
     override func setupAVCapture() {
         setupLocalVideo()
         setupVision()
-        setupLayers()
     }
     
     override func viewWillDisappear(_ animated: Bool) {
@@ -103,12 +102,12 @@ class VideoViewController: VisionObjectRecognitionViewController {
         let videoRect = playerLayer.videoRect
         detectionOverlay = CALayer()
         detectionOverlay.name = "DetectionOverlay"
-        detectionOverlay.frame = videoRect
+        detectionOverlay.bounds = videoRect
         detectionOverlay.position = CGPoint(x: videoRect.midX, y: videoRect.midY)
-        detectionOverlay.anchorPoint = CGPoint(x: 0.5, y: 0.5)
+        // detectionOverlay.anchorPoint = CGPoint(x: 0.5, y: 0.5)
         detectionOverlay.zPosition = 999
         
-        view.layer.addSublayer(detectionOverlay)
+        rootLayer.addSublayer(detectionOverlay)
     }
     
     // MARK: - Timer Management
