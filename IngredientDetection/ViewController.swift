@@ -160,7 +160,7 @@ class ViewController: UIViewController, AVCaptureVideoDataOutputSampleBufferDele
     }
 }
 
-class VideoViewController: ViewController {
+class VideoViewController: VisionObjectRecognitionViewController {
     // MARK: - Properties
     private var videoPlayer: AVPlayer?
     private var videoOutput: AVPlayerItemVideoOutput?
