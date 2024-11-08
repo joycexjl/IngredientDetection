@@ -17,7 +17,10 @@ class VideoViewController: VisionObjectRecognitionViewController {
     private var videoOutput: AVPlayerItemVideoOutput?
 
     let videoURL: URL
-
+    init(videoURL: URL) {
+        self.videoURL = videoURL
+        super.init(nibName: nil, bundle: nil)
+    }
     // MARK: - View Lifecycle
     override func setupAVCapture() {
         setupLocalVideo()
