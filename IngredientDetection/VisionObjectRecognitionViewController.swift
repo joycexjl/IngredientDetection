@@ -138,7 +138,7 @@ class VisionObjectRecognitionViewController: ViewController {
                         
                         self.setupLayers()
                         // 处理 YOLO 输出并直接绘制
-                        let detections = detectionProcessor.processMLMultiArray(multiArray)
+                        let detections = self.detectionProcessor.processMLMultiArray(multiArray)
                         self.drawDetections(detections)
                     }
                 }
