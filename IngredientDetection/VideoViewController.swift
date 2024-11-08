@@ -19,7 +19,6 @@ class VideoViewController: VisionObjectRecognitionViewController {
 
     // MARK: - View Lifecycle
     override func setupAVCapture() {
-        super.viewDidLoad()
         setupLocalVideo()
         setupVision()
         setupLayers()
