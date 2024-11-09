@@ -157,7 +157,7 @@ class VisionObjectRecognitionViewController: ViewController {
 
         let safeAreaInsets = view.safeAreaInsets // eaaaaaaaaaaaaa
         
-        // 清除现有的检测层
+        // Remove current overlays
         detectionOverlay.sublayers = nil
         let viewWidth = detectionOverlay.bounds.width - safeAreaInsets.left - safeAreaInsets.right
         let viewHeight = detectionOverlay.bounds.height - safeAreaInsets.bottom - safeAreaInsets.top
@@ -177,17 +177,18 @@ class VisionObjectRecognitionViewController: ViewController {
             // detection bounding box
             let boxLayer = CALayer()
             boxLayer.frame = convertedBox
-            boxLayer.borderColor = UIColor.green.cgColor
+//            boxLayer.borderColor = UIColor.green.cgColor
+            boxLayer.borderColor = Constants.category(for: detection.classLabel).cgColor
             boxLayer.backgroundColor = UIColor.clear.cgColor
             boxLayer.borderWidth = 3
             boxLayer.cornerRadius = 4
             
-            // 创建标签图层
+            // label
             let textLayer = createTextLayerInBounds(convertedBox,
                                                     identifier: detection.classLabel,
                                                     confidence: detection.confidence)
 
-            // 添加图层
+            // add overlay
             detectionOverlay.addSublayer(boxLayer)
             detectionOverlay.addSublayer(textLayer)
         }
@@ -266,114 +267,6 @@ class VisionObjectRecognitionViewController: ViewController {
 //         }
 //         return selected
 //     }
-
-    
-//     func processYOLOOutput(_ multiArray: MLMultiArray) -> [Detection] {
-//         var detections: [Detection] = []
-//         let numClasses = 80  // 根据你的模型调整
-//         let numAttributes = numClasses + 4  // 类别数 + 边界框坐标
-//         let numBoxes = 8400
-
-//         let dataPointer = multiArray.dataPointer.assumingMemoryBound(to: Float.self)
-//         var classScores = [Float](repeating: 0, count: numClasses)
-//         var maxScore: Float = 0
-//         var maxIndex: vDSP_Length = 0
-//         var boundingBoxes: [Detection] = []
-//         boundingBoxes.reserveCapacity(100)  // 预估容量
-
-//         // for all boxes
-//         for i in 0..<numBoxes {  // 根据你的模型调整
-//             // 找出最高置信度的类别
-//             for j in 0..<numClasses {
-//                 classScores[j] = dataPointer[4 * numBoxes + j * numBoxes + i]
-//             }
-
-//             // find max score and index
-//             vDSP_maxvi(classScores,
-//                   vDSP_Stride(1),
-//                   &maxScore,
-//                   &maxIndex,
-//                   vDSP_Length(numClasses))
-
-//             // 如果置信度超过阈值
-//             if maxScore > 0.5 {  // 根据需要调整阈值
-//                 // 获取边界框坐标
-//                 let x = Float(truncating: multiArray[[0, 0, i] as [NSNumber]])
-//                 let y = Float(truncating: multiArray[[0, 1, i] as [NSNumber]])
-//                 let w = Float(truncating: multiArray[[0, 2, i] as [NSNumber]])
-//                 let h = Float(truncating: multiArray[[0, 3, i] as [NSNumber]])
-//                 // 归一化坐标 (确保所有值在0-1之间)
-//                 let normalizedX = CGFloat(x) / 640.0  // 模型输入宽度
-//                 let normalizedY = CGFloat(y) / 640.0  // 模型输入高度
-//                 let normalizedW = CGFloat(w) / 640.0
-//                 let normalizedH = CGFloat(h) / 640.0
-                
-//                 // 创建边界框，注意中心点坐标转换为左上角坐标
-//                 let boundingBox = CGRect(
-//                     x: max(0, min(1, normalizedX - normalizedW/2)),
-//                     y: max(0, min(1, normalizedY - normalizedH/2)),
-//                     width: max(0, min(1, normalizedW)),
-//                     height: max(0, min(1, normalizedH))
-//                 )
-
-//                 detections.append(Detection(boundingBox: boundingBox,
-//                                          confidence: maxScore,
-//                                          classLabel: getClassLabel(Int(maxIndex))))
-//             }
-//         }
-        
-//         print("detected \(detections.count) objects")
-//         return applyNMS(detections.sorted { $0.confidence > $1.confidence })
-//     }
-    
-//     func getClassLabel(_ index: Int) -> String {
-//         let labels = ["person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat",
-//                      "traffic light", "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat",
-//                      "dog", "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe", "backpack",
-//                      "umbrella", "handbag", "tie", "suitcase", "frisbee", "skis", "snowboard", "sports ball",
-//                      "kite", "baseball bat", "baseball glove", "skateboard", "surfboard", "tennis racket",
-//                      "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple",
-//                      "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair",
-//                      "couch", "potted plant", "bed", "dining table", "toilet", "tv", "laptop", "mouse",
-//                      "remote", "keyboard", "cell phone", "microwave", "oven", "toaster", "sink", "refrigerator",
-//                      "book", "clock", "vase", "scissors", "teddy bear", "hair drier", "toothbrush"]
-//         return index < labels.count ? labels[index] : "unknown"
-//     }
-    
-
-//    func getColorForCategory(_ label: String) -> UIColor {
-//        // Define category groups
-//        let people = ["person"]
-//        let vehicles = ["bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat"]
-//        let animals = ["bird", "cat", "dog", "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe"]
-//        let food = ["banana", "apple", "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake"]
-       
-//        // Return different colors based on category
-//        switch label {
-//        case _ where people.contains(label):
-//            return UIColor.red
-//        case _ where vehicles.contains(label):
-//            return UIColor.blue
-//        case _ where animals.contains(label):
-//            return UIColor.green
-//        case _ where food.contains(label):
-//            return UIColor.orange
-//        default:
-//            return UIColor.yellow
-//        }
-//    }
-    
-    // func createRoundedRectLayerWithBounds(_ bounds: CGRect, color: CGColor? = nil) -> CALayer {
-    //     let shapeLayer = CALayer()
-    //     shapeLayer.bounds = bounds
-    //     shapeLayer.position = CGPoint(x: bounds.midX, y: bounds.midY)
-    //     shapeLayer.name = "Found Object"
-    //     shapeLayer.backgroundColor = color ?? CGColor(red: 0.0, green: 1.0, blue: 0.0, alpha: 0.4)
-    //     shapeLayer.cornerRadius = 7
-    //     shapeLayer.borderColor = CGColor(red: 1.0, green: 1.0, blue: 1.0, alpha: 0.8)
-    //     shapeLayer.borderWidth = 2
-    //     return shapeLayer
-    // }
     
     func setupLayers() {
         // Remove existing detection overlay if it exists

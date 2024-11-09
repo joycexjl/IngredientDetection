@@ -13,7 +13,7 @@ struct Detection {
 
 
 // MARK: - Constants
-private enum Constants {
+enum Constants {
     static let numBoxes = 8400
     static let modelInputSize: CGFloat = 640.0
     static let defaultConfidenceThreshold: Float = 0.2

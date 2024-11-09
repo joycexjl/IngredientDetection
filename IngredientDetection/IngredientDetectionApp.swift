@@ -79,6 +79,6 @@ struct DetectionOptionButton: View {
     }
 }
 
-#Preview {
-    MainView()
-}
+//#Preview {
+//    MainView()
+//}
