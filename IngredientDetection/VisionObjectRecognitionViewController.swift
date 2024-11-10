@@ -14,12 +14,13 @@ import Accelerate
 class VisionObjectRecognitionViewController: ViewController {
     
     var detectionOverlay: CALayer! = nil
-    // struct Detection {
-    //     let boundingBox: CGRect
-    //     let confidence: Float
-    //     let classLabel: String
-    // }
-    private let detectionProcessor = DetectionResultProcessor()
+
+    private lazy var detectionProcessor: DetectionResultProcessor = {
+        let processor = DetectionResultProcessor()
+        processor.delegate = self
+        print("🔄 Creating DetectionResultProcessor and setting delegate")
+        return processor
+    }()
 
     var detectionTimer: Timer?
     var isProcessingFrame = false
@@ -36,7 +37,7 @@ class VisionObjectRecognitionViewController: ViewController {
         previewView = UIView(frame: view.bounds)
         previewView.contentMode = .scaleAspectFill
         view.addSubview(previewView)
-        print("ViewController - Preview view created and added")
+        // print("ViewController - Preview view created and added")
         
         // Add constraints to make preview view fill the entire view
         previewView.translatesAutoresizingMaskIntoConstraints = false
@@ -47,14 +48,14 @@ class VisionObjectRecognitionViewController: ViewController {
             previewView.trailingAnchor.constraint(equalTo: view.trailingAnchor)
         ])
         
-        print("VisionObjectRecognitionViewController - setupAVCapture started")
+        // print("VisionObjectRecognitionViewController - setupAVCapture started")
         super.setupAVCapture()
         
-        print("VisionObjectRecognitionViewController - Setting up Vision components")
+        // print("VisionObjectRecognitionViewController - Setting up Vision components")
         setupLayers()
         updateLayerGeometry()
         setupVision()
-        print("VisionObjectRecognitionViewController - Vision setup complete")
+        // print("VisionObjectRecognitionViewController - Vision setup complete")
     }
     
     override func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
@@ -78,17 +79,17 @@ class VisionObjectRecognitionViewController: ViewController {
     func processCurrentFrame(sampleBuffer: CMSampleBuffer) {
         // If already processing a frame, skip this one
         guard !isProcessingFrame else {
-            print("Skipping frame - still processing previous frame")
+            // print("Skipping frame - still processing previous frame")
             return 
         }
         
         // Mark processing started
         isProcessingFrame = true
-        print("Processing new frame at time: \(CACurrentMediaTime())")
+        // print("Processing new frame at time: \(CACurrentMediaTime())")
         
         // Get pixel buffer from sample buffer
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
-            print("Failed to get pixel buffer")
+            // print("Failed to get pixel buffer")
             isProcessingFrame = false
             return
         }
@@ -103,7 +104,7 @@ class VisionObjectRecognitionViewController: ViewController {
         do {
             try imageRequestHandler.perform(self.requests)
         } catch {
-            print("Failed to process video frame: \(error)")
+            // print("Failed to process video frame: \(error)")
         }
         
         // Mark processing complete
@@ -115,12 +116,12 @@ class VisionObjectRecognitionViewController: ViewController {
         // Setup Vision parts
         let error: NSError! = nil
         do {
-            print("setupVision")
+            // print("setupVision")
             let config = MLModelConfiguration()
             config.computeUnits = .all
             
             guard let model = try? yolo11m(configuration: config) else {
-                print("Failed to create model instance")
+                // print("Failed to create model instance")
                 fatalError("Failed to create model instance")
             }
             
@@ -165,8 +166,8 @@ class VisionObjectRecognitionViewController: ViewController {
         
         // get top 5 detections
         for detection in detections {
-            print("start drawing detections")
-            print(detection)  // TODO
+            // print("start drawing detections")
+            // print(detection)  // TODO
             let convertedBox = CGRect(
                 x: detection.boundingBox.minX * viewWidth,
                 y: detection.boundingBox.minY * viewHeight,
@@ -198,76 +199,6 @@ class VisionObjectRecognitionViewController: ViewController {
         // updateLayerGeometry()
     }
     
-//     func drawVisionRequestResults(_ results: [Any]) {
-//         // Remove existing detection overlays
-//         self.detectionOverlay.sublayers = nil
-
-//         for observation in results where observation is VNRecognizedObjectObservation {
-//             guard let objectObservation = observation as? VNRecognizedObjectObservation else {
-//                 continue
-//             }
-//             //—————————————————————— DEBUG ——————————————————————//
-//             print(observation)
-//             //—————————————————————— DEBUG ——————————————————————//
-
-//             // Select the label with the highest confidence
-//             let topLabelObservation = objectObservation.labels[0]
-//             let objectBounds = VNImageRectForNormalizedRect(objectObservation.boundingBox,
-//                                                             Int(self.bufferSize.width),
-//                                                             Int(self.bufferSize.height))
-
-//             // Create shape layer
-//             let shapeLayer = self.createRoundedRectLayerWithBounds(objectBounds)
-
-//             // Create text layer
-//             let textLayer = self.createTextLayerInBounds(objectBounds,
-//                                                           identifier: topLabelObservation.identifier,
-//                                                           confidence: topLabelObservation.confidence)
-
-//             shapeLayer.addSublayer(textLayer)
-//             self.detectionOverlay.addSublayer(shapeLayer)
-//         }
-
-//         self.updateLayerGeometry()
-//     }
-
-//     func applyNMS(_ boxes: [Detection], iouThreshold: Float = 0.45) -> [Detection] {
-//         var selected: [Detection] = []
-        
-//         // 只处理置信度排序后的前100个框
-//         for detection in boxes.prefix(100) {
-//             var shouldSelect = true
-            
-//             // 检查是否与已选择的框重叠
-//             for selectedBox in selected {
-//                 let iou = calculateIOU(detection.boundingBox, selectedBox.boundingBox)
-//                 if iou > iouThreshold {
-//                     // 如果重叠度高，且当前框置信度更高，替换已选择的框
-//                     if detection.confidence > selectedBox.confidence {
-//                         if let index = selected.firstIndex(where: { $0.boundingBox == selectedBox.boundingBox }) {
-//                             selected[index] = detection
-//                             shouldSelect = false
-//                             break
-//                         }
-//                     } else {
-//                         shouldSelect = false
-//                         break
-//                     }
-//                 }
-//             }
-            
-//             if shouldSelect {
-//                 selected.append(detection)
-//             }
-            
-//             // 如果已经选择了足够多的框，就停止处理
-//             if selected.count >= 5 {
-//                 break
-//             }
-//         }
-//         return selected
-//     }
-    
     func setupLayers() {
         // Remove existing detection overlay if it exists
         detectionOverlay?.removeFromSuperlayer()
@@ -282,23 +213,12 @@ class VisionObjectRecognitionViewController: ViewController {
         detectionOverlay.position = CGPoint(x: rootLayer.bounds.midX, y: rootLayer.bounds.midY)
         rootLayer.addSublayer(detectionOverlay)
     }
-    
-    // func calculateIOU(_ box1: CGRect, _ box2: CGRect) -> Float {
-    //     let intersection = box1.intersection(box2)
-    //     let union = box1.union(box2)
-        
-    //     guard !intersection.isNull && !union.isNull else { return 0 }
-    //     let intersectionArea = intersection.width * intersection.height
-    //     let unionArea = union.width * union.height
-        
-    //     return Float(intersectionArea / unionArea)
-    // }
 
     func updateLayerGeometry() {
         let bounds = self.rootLayer.bounds
         // var scale: CGFloat = 1.0
         let scale = bounds.size.width / view.bounds.size.width
-        let transform = CGAffineTransform(scaleX: scale, y: scale) 
+        _ = CGAffineTransform(scaleX: scale, y: scale) 
         self.detectionOverlay.setAffineTransform(CGAffineTransform(scaleX: scale, y: -scale))
         self.detectionOverlay.position = CGPoint(x: bounds.midX, y: bounds.midY)
     }
@@ -328,5 +248,59 @@ class VisionObjectRecognitionViewController: ViewController {
         )
         textLayer.contentsScale = UIScreen.main.scale
         return textLayer
+    }
+
+    @objc override func showAddIngredientAlert(for foodItem: String) {
+        print("📱 showAddIngredientAlert called for \(foodItem)")
+        DispatchQueue.main.async {
+            print("📱 Creating alert for \(foodItem)")
+            let alert = UIAlertController(
+                title: "Add Ingredient",
+                message: "How many \(foodItem)(s) would you like to add?",
+                preferredStyle: .alert
+            )
+            
+            alert.addTextField { textField in
+                textField.keyboardType = .numberPad
+                textField.placeholder = "Enter quantity"
+            }
+            
+            alert.addAction(UIAlertAction(title: "Add", style: .default) { [weak self] _ in
+                guard let self = self,
+                      let quantityText = alert.textFields?.first?.text,
+                      let quantity = Int(quantityText), quantity > 0 else {
+                    self?.showErrorAlert(message: "Please enter a valid quantity")
+                    return
+                }
+                
+                print("📱 Adding ingredient: \(foodItem) with quantity: \(quantity)")
+                self.addIngredient(name: foodItem, quantity: quantity)
+                self.detectionProcessor.markIngredientAsAdded(foodItem)
+            })
+            
+            alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+            
+            print("📱 Presenting alert")
+            self.present(alert, animated: true) {
+                print("📱 Alert presented successfully")
+            }
+        }
+    }
+
+    private func showErrorAlert(message: String) {
+        DispatchQueue.main.async {
+            let alert = UIAlertController(
+                title: "Error",
+                message: message,
+                preferredStyle: .alert
+            )
+            alert.addAction(UIAlertAction(title: "OK", style: .default))
+            self.present(alert, animated: true)
+        }
+    }
+
+    private func addIngredient(name: String, quantity: Int) {
+        ingredientsList.append((name: name, quantity: quantity))
+        ingredientsTableView.reloadData()
     }
 }

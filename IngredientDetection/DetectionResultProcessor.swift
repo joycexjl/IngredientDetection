@@ -53,6 +53,13 @@ enum Constants {
                 return UIColor.yellow
         }
     }
+    
+    static let foodDetectionThreshold: TimeInterval = 2.0
+}
+
+// Add new protocol for delegate
+@objc protocol DetectionResultProcessorDelegate: AnyObject {
+    func showAddIngredientAlert(for foodItem: String)
 }
 
 // MARK: - DetectionResultProcessor
@@ -61,6 +68,17 @@ class DetectionResultProcessor {
     private let confidenceThreshold: Float
     private let maxDetections: Int
     private let iouThreshold: Float
+    
+    private var lastFoodDetectionTimes: [String: Date] = [:]
+    private var addedIngredients: Set<String> = []
+    weak var delegate: DetectionResultProcessorDelegate? {
+        didSet {
+            print("🔄 Delegate set: \(delegate != nil ? "YES" : "NO")")
+        }
+    }
+    
+    // Add a property to track if we've already shown an alert for the current detection
+    private var alertShownForCurrentDetection: [String: Bool] = [:]
     
     // MARK: - Initialization
     init(confidenceThreshold: Float = Constants.defaultConfidenceThreshold,
@@ -75,7 +93,13 @@ class DetectionResultProcessor {
     func processMLMultiArray(_ multiArray: MLMultiArray) -> [Detection] {
         let rawDetections = extractDetections(from: multiArray)
         let filteredDetections = filterDetections(rawDetections)
-        return applyNMS(to: filteredDetections)
+        let nmsDetections = applyNMS(to: filteredDetections)
+        
+        // Process food detections
+        checkSustainedFoodDetections(in: nmsDetections)
+        
+        // Filter out already added ingredients
+        return nmsDetections.filter { !addedIngredients.contains($0.classLabel) }
     }
     
     // MARK: - extract Detections from MLMultiArray
@@ -177,6 +201,77 @@ class DetectionResultProcessor {
         guard !intersection.isNull && !union.isNull else { return 0 }
         
         return Float(intersection.area / union.area)
+    }
+    
+    // Add new method to track food detections
+    private func checkSustainedFoodDetections(in detections: [Detection]) {
+        let currentTime = Date()
+        
+        print("\n--- Starting Food Detection Check ---")
+        print("🎯 Delegate exists: \(delegate != nil ? "YES" : "NO")")
+        print("Currently visible detections:", detections.map { "\($0.classLabel) (conf: \($0.confidence))" })
+        print("Current food tracking state:")
+        print("- Last detection times:", lastFoodDetectionTimes)
+        print("- Alert shown state:", alertShownForCurrentDetection)
+        print("- Added ingredients:", addedIngredients)
+        
+        // Update detection times for currently visible food items
+        for detection in detections where Constants.food.contains(detection.classLabel) {
+            let foodItem = detection.classLabel
+            
+            if !addedIngredients.contains(foodItem) {
+                if lastFoodDetectionTimes[foodItem] == nil {
+                    print("➡️ First time seeing \(foodItem), starting timer")
+                    lastFoodDetectionTimes[foodItem] = currentTime
+                    alertShownForCurrentDetection[foodItem] = false
+                }
+                
+                if let detectionStart = lastFoodDetectionTimes[foodItem] {
+                    let timeVisible = currentTime.timeIntervalSince(detectionStart)
+                    print("📍 \(foodItem) has been visible for \(String(format: "%.1f", timeVisible))s")
+                    
+                    if timeVisible >= Constants.foodDetectionThreshold {
+                        if alertShownForCurrentDetection[foodItem] == false {
+                            print("🔔 Attempting to show alert for \(foodItem)")
+                            if let delegate = delegate {
+                                delegate.showAddIngredientAlert(for: foodItem)
+                                alertShownForCurrentDetection[foodItem] = true
+                                print("✅ Alert delegate method called")
+                            } else {
+                                print("❌ ERROR: Delegate is nil! Alert cannot be shown")
+                            }
+                        } else {
+                            print("⏭️ Alert already shown for \(foodItem)")
+                        }
+                    } else {
+                        print("⏳ Waiting for \(foodItem) - \(String(format: "%.1f", Constants.foodDetectionThreshold - timeVisible))s remaining")
+                    }
+                }
+            } else {
+                print("⚠️ \(foodItem) already in ingredients list - ignoring")
+            }
+        }
+        
+        // Clear detection times and alert flags for food items no longer visible
+        let visibleFoodItems = Set(detections.map { $0.classLabel })
+        for foodItem in lastFoodDetectionTimes.keys where !visibleFoodItems.contains(foodItem) {
+            print("❌ \(foodItem) no longer visible - resetting tracking")
+            lastFoodDetectionTimes.removeValue(forKey: foodItem)
+            alertShownForCurrentDetection.removeValue(forKey: foodItem)
+        }
+        
+        print("--- End Food Detection Check ---\n")
+    }
+    
+    // Add method to mark ingredient as added
+    func markIngredientAsAdded(_ ingredient: String) {
+        addedIngredients.insert(ingredient)
+        lastFoodDetectionTimes.removeValue(forKey: ingredient)
+    }
+    
+    // Add to DetectionResultProcessor class
+    func unmarkIngredientAsAdded(_ ingredient: String) {
+        addedIngredients.remove(ingredient)
     }
 }
 

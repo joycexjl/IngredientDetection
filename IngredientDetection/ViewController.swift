@@ -11,7 +11,28 @@ import Vision
 import CoreML
 import Accelerate
 
-class ViewController: UIViewController, AVCaptureVideoDataOutputSampleBufferDelegate {
+class ViewController: UIViewController, AVCaptureVideoDataOutputSampleBufferDelegate, UITableViewDelegate, UITableViewDataSource {
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        return ingredientsList.count
+    }
+    
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        let cell = tableView.dequeueReusableCell(withIdentifier: "IngredientCell", for: indexPath)
+        let ingredient = ingredientsList[indexPath.row]
+        cell.textLabel?.text = "\(ingredient.name) (Quantity: \(ingredient.quantity))"
+        return cell
+    }
+    
+    // Optional: Add swipe to delete functionality
+    func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
+        if editingStyle == .delete {
+            let removedIngredient = ingredientsList[indexPath.row]
+            ingredientsList.remove(at: indexPath.row)
+            detectionProcessor.unmarkIngredientAsAdded(removedIngredient.name)
+            tableView.deleteRows(at: [indexPath], with: .fade)
+        }
+    }
+    
     
     var bufferSize: CGSize = .zero
     var rootLayer: CALayer! = nil
@@ -23,11 +44,33 @@ class ViewController: UIViewController, AVCaptureVideoDataOutputSampleBufferDele
     
     private let videoDataOutputQueue = DispatchQueue(label: "VideoDataOutput", qos: .userInitiated, attributes: [], autoreleaseFrequency: .workItem)
     
+    var ingredientsList: [(name: String, quantity: Int)] = []
+    
+    lazy var ingredientsTableView: UITableView = {
+        let tableView = UITableView()
+        tableView.translatesAutoresizingMaskIntoConstraints = false
+        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "IngredientCell")
+        tableView.delegate = self
+        tableView.dataSource = self
+        return tableView
+    }()
+    
+    private lazy var detectionProcessor: DetectionResultProcessor = {
+        let processor = DetectionResultProcessor()
+        processor.delegate = self
+        print("📱 Setting up DetectionResultProcessor with delegate")
+        return processor
+    }()
+    
     override func viewDidLoad() {
         super.viewDidLoad()
-        print("ViewController - viewDidLoad started")
+        print("📱 ViewController viewDidLoad")
+        // Verify delegate is set
+        print("📱 Delegate properly set: \(detectionProcessor.delegate != nil)")
+        // print("ViewController - viewDidLoad started")
 
         setupAVCapture()
+        setupIngredientsTableView()
     }
     
     override func didReceiveMemoryWarning() {
@@ -36,18 +79,18 @@ class ViewController: UIViewController, AVCaptureVideoDataOutputSampleBufferDele
     }
     
     func setupAVCapture() {
-        print("ViewController - setupAVCapture started")
+        // print("ViewController - setupAVCapture started")
         var deviceInput: AVCaptureDeviceInput!
         
         // Select a video device, make an input
         let videoDevice = AVCaptureDevice.DiscoverySession(deviceTypes: [.builtInWideAngleCamera], mediaType: .video, position: .back).devices.first
-        print("ViewController - Video device found: \(String(describing: videoDevice?.localizedName))")
+        // print("ViewController - Video device found: \(String(describing: videoDevice?.localizedName))")
         
         do {
             deviceInput = try AVCaptureDeviceInput(device: videoDevice!)
-            print("ViewController - Device input created successfully")
+            // print("ViewController - Device input created successfully")
         } catch {
-            print("Could not create video device input: \(error)")
+            // print("Could not create video device input: \(error)")
             return
         }
         
@@ -56,7 +99,7 @@ class ViewController: UIViewController, AVCaptureVideoDataOutputSampleBufferDele
         
         // Add a video input
         guard session.canAddInput(deviceInput) else {
-            print("ViewController - Could not add video device input to the session")
+            // print("ViewController - Could not add video device input to the session")
             session.commitConfiguration()
             return
         }
@@ -68,7 +111,7 @@ class ViewController: UIViewController, AVCaptureVideoDataOutputSampleBufferDele
             videoDataOutput.videoSettings = [kCVPixelBufferPixelFormatTypeKey as String: Int(kCVPixelFormatType_420YpCbCr8BiPlanarFullRange)]
             videoDataOutput.setSampleBufferDelegate(self, queue: videoDataOutputQueue)
         } else {
-            print("ViewController - Could not add video data output to the session")
+            // print("ViewController - Could not add video data output to the session")
             session.commitConfiguration()
             return
         }
@@ -90,14 +133,14 @@ class ViewController: UIViewController, AVCaptureVideoDataOutputSampleBufferDele
         rootLayer = previewView.layer
         previewLayer.frame = rootLayer.bounds
         rootLayer.addSublayer(previewLayer)
-        print("ViewController - Preview layer setup complete")
+        // print("ViewController - Preview layer setup complete")
     }
     
     func startCaptureSession() {
-        print("ViewController - Starting capture session on background thread")
+        // print("ViewController - Starting capture session on background thread")
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             self?.session.startRunning()
-            print("ViewController - Capture session started")
+            // print("ViewController - Capture session started")
         }
     }
     
@@ -108,8 +151,10 @@ class ViewController: UIViewController, AVCaptureVideoDataOutputSampleBufferDele
     }
     
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
-        // Handle dropped frames if needed
-        // print("frame dropped")
+        // Make sure you're using the detectionProcessor here
+        print("📱 Processing frame with detectionProcessor")
+        // Your detection processing code here
+        // Make sure you're using self.detectionProcessor, not creating a new instance
     }
     
     public func exifOrientationFromDeviceOrientation() -> CGImagePropertyOrientation {
@@ -140,6 +185,77 @@ class ViewController: UIViewController, AVCaptureVideoDataOutputSampleBufferDele
         super.viewWillAppear(animated)
         if !session.isRunning {
             startCaptureSession()
+        }
+    }
+    
+    private func setupIngredientsTableView() {
+        view.addSubview(ingredientsTableView)
+        NSLayoutConstraint.activate([
+            ingredientsTableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            ingredientsTableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            ingredientsTableView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            ingredientsTableView.heightAnchor.constraint(equalTo: view.heightAnchor, multiplier: 0.3) // Takes up bottom 30% of screen
+        ])
+    }
+}
+extension ViewController: DetectionResultProcessorDelegate {
+    func showAddIngredientAlert(for foodItem: String) {
+        print("📱 showAddIngredientAlert called for \(foodItem)")
+        DispatchQueue.main.async {
+            print("📱 Creating alert for \(foodItem)")
+            let alert = UIAlertController(
+                title: "Add Ingredient",
+                message: "How many \(foodItem)(s) would you like to add?",
+                preferredStyle: .alert
+            )
+            
+            alert.addTextField { textField in
+                textField.keyboardType = .numberPad
+                textField.placeholder = "Enter quantity"
+            }
+            
+            alert.addAction(UIAlertAction(title: "Add", style: .default) { [weak self] _ in
+                guard let self = self,
+                      let quantityText = alert.textFields?.first?.text,
+                      let quantity = Int(quantityText), quantity > 0 else {
+                    self?.showErrorAlert(message: "Please enter a valid quantity")
+                    return
+                }
+                
+                print("📱 Adding ingredient: \(foodItem) with quantity: \(quantity)")
+                self.addIngredient(name: foodItem, quantity: quantity)
+                self.detectionProcessor.markIngredientAsAdded(foodItem)
+            })
+            
+            alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+            
+            print("📱 Presenting alert")
+            self.present(alert, animated: true) {
+                print("📱 Alert presented successfully")
+            }
+        }
+    }
+    
+    private func addIngredient(name: String, quantity: Int) {
+        ingredientsList.append((name: name, quantity: quantity))
+        ingredientsTableView.reloadData()
+    }
+}
+extension ViewController {
+    private func showErrorAlert(message: String) {
+        DispatchQueue.main.async {
+            let alert = UIAlertController(
+                title: "Error",
+                message: message,
+                preferredStyle: .alert
+            )
+            
+            alert.addAction(UIAlertAction(title: "OK", style: .default))
+            
+            print("📱 Showing error alert: \(message)")
+            self.present(alert, animated: true) {
+                print("📱 Error alert presented successfully")
+            }
         }
     }
 }
