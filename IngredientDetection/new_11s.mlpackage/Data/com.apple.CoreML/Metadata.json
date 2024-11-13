@@ -1,0 +1,18 @@
+{
+  "MLModelVersionStringKey" : "8.3.27",
+  "MLModelDescriptionKey" : "Ultralytics YOLO11s model trained on data.yaml",
+  "MLModelCreatorDefinedKey" : {
+    "stride" : "32",
+    "com.github.apple.coremltools.source" : "torch==2.5.1",
+    "com.github.apple.coremltools.version" : "8.0",
+    "docs" : "https:\/\/docs.ultralytics.com",
+    "task" : "detect",
+    "com.github.apple.coremltools.source_dialect" : "TorchScript",
+    "imgsz" : "[640, 640]",
+    "date" : "2024-11-12T12:25:39.880191",
+    "batch" : "1",
+    "names" : "{0: 'apple', 1: 'artichoke', 2: 'asparagus', 3: 'avocado', 4: 'bamboo_shoots', 5: 'banana', 6: 'beans', 7: 'beef', 8: 'beetroot', 9: 'bread', 10: 'broccoli', 11: 'butter', 12: 'cabbage', 13: 'cactus', 14: 'carrot', 15: 'cassava', 16: 'cauliflower', 17: 'cereal', 18: 'cheese', 19: 'chicken', 20: 'chocolate', 21: 'citrus', 22: 'coffee', 23: 'corn', 24: 'cucumber', 25: 'dairy', 26: 'egg', 27: 'eggplant', 28: 'fish', 29: 'fruit', 30: 'garlic', 31: 'ginger', 32: 'gourd', 33: 'grape', 34: 'herbs', 35: 'honey', 36: 'jackfruit', 37: 'juice', 38: 'kimchi', 39: 'kiwi', 40: 'leafy_greens', 41: 'lentils', 42: 'lettuce', 43: 'mango', 44: 'meat', 45: 'moringa', 46: 'mushroom', 47: 'noodles', 48: 'nuts', 49: 'oil', 50: 'okra', 51: 'olive', 52: 'onion', 53: 'papaya', 54: 'pasta', 55: 'pear', 56: 'peas', 57: 'pepper', 58: 'pickle', 59: 'pineapple', 60: 'plum', 61: 'pomegranate', 62: 'pork', 63: 'potato', 64: 'poultry', 65: 'processed_food', 66: 'processed_meat', 67: 'pumpkin', 68: 'radish', 69: 'rice_product', 70: 'sauce', 71: 'seafood', 72: 'seasoning', 73: 'seaweed', 74: 'spice', 75: 'spinach', 76: 'strawberry', 77: 'taro', 78: 'tofu', 79: 'tomato', 80: 'turnip', 81: 'watermelon', 82: 'wheat', 83: 'zucchini'}"
+  },
+  "MLModelAuthorKey" : "Ultralytics",
+  "MLModelLicenseKey" : "AGPL-3.0 License (https:\/\/ultralytics.com\/license)"
+}

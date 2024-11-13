@@ -19,7 +19,50 @@ class ViewController: UIViewController, AVCaptureVideoDataOutputSampleBufferDele
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "IngredientCell", for: indexPath)
         let ingredient = ingredientsList[indexPath.row]
-        cell.textLabel?.text = "\(ingredient.name) (Quantity: \(ingredient.quantity))"
+        
+        // Create a background view for the cell content
+        let backgroundView = UIView()
+        backgroundView.backgroundColor = UIColor(red: 217/255, green: 217/255, blue: 217/255, alpha: 0.25)
+        backgroundView.layer.cornerRadius = 10
+        
+        // Create container view for content
+        let containerView = UIView()
+        containerView.backgroundColor = backgroundView.backgroundColor
+        containerView.layer.cornerRadius = 10
+        
+        // Style the text label
+        let label = UILabel()
+        label.text = "\(ingredient.name) (Quantity: \(ingredient.quantity))"
+        label.font = UIFont(name: "Jost", size: 16)
+        label.textColor = .white
+        
+        // Add label to container view
+        containerView.addSubview(label)
+        label.translatesAutoresizingMaskIntoConstraints = false
+        
+        // Setup label constraints within container
+        NSLayoutConstraint.activate([
+            label.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 15),
+            label.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -15),
+            label.centerYAnchor.constraint(equalTo: containerView.centerYAnchor)
+        ])
+        
+        // Add container view to cell
+        cell.contentView.addSubview(containerView)
+        containerView.translatesAutoresizingMaskIntoConstraints = false
+        
+        // Setup container constraints with horizontal insets
+        NSLayoutConstraint.activate([
+            containerView.leadingAnchor.constraint(equalTo: cell.contentView.leadingAnchor, constant: 20),
+            containerView.trailingAnchor.constraint(equalTo: cell.contentView.trailingAnchor, constant: -20),
+            containerView.topAnchor.constraint(equalTo: cell.contentView.topAnchor, constant: 5),
+            containerView.bottomAnchor.constraint(equalTo: cell.contentView.bottomAnchor, constant: -5)
+        ])
+        
+        // Clear default cell styling
+        cell.backgroundColor = .clear
+        cell.selectionStyle = .none
+        
         return cell
     }
     
@@ -33,6 +76,10 @@ class ViewController: UIViewController, AVCaptureVideoDataOutputSampleBufferDele
         }
     }
     
+    // Add spacing between cells
+    func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
+        return 60
+    }
     
     var bufferSize: CGSize = .zero
     var rootLayer: CALayer! = nil
@@ -65,12 +112,19 @@ class ViewController: UIViewController, AVCaptureVideoDataOutputSampleBufferDele
     override func viewDidLoad() {
         super.viewDidLoad()
         print("📱 ViewController viewDidLoad")
+        
+        // Create preview view first
+        previewView = UIView(frame: view.bounds)
+        view.addSubview(previewView)
+        
+        // Setup AV Capture after preview view is added
+        setupAVCapture()
+        
+        // Setup table view after preview view
+        setupIngredientsTableView()
+        
         // Verify delegate is set
         print("📱 Delegate properly set: \(detectionProcessor.delegate != nil)")
-        // print("ViewController - viewDidLoad started")
-
-        setupAVCapture()
-        setupIngredientsTableView()
     }
     
     override func didReceiveMemoryWarning() {
@@ -189,12 +243,22 @@ class ViewController: UIViewController, AVCaptureVideoDataOutputSampleBufferDele
     }
     
     private func setupIngredientsTableView() {
+        // First add the table view to the view hierarchy
         view.addSubview(ingredientsTableView)
+        
+        // Style the table view
+        ingredientsTableView.backgroundColor = UIColor(red: 54/255, green: 94/255, blue: 50/255, alpha: 0.93)
+        ingredientsTableView.separatorStyle = .none
+        ingredientsTableView.isScrollEnabled = false
+        ingredientsTableView.alwaysBounceVertical = false
+        ingredientsTableView.contentInset = UIEdgeInsets(top: 10, left: 0, bottom: 10, right: 0)
+        
+        // Then set up constraints
         NSLayoutConstraint.activate([
             ingredientsTableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             ingredientsTableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             ingredientsTableView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-            ingredientsTableView.heightAnchor.constraint(equalTo: view.heightAnchor, multiplier: 0.3) // Takes up bottom 30% of screen
+            ingredientsTableView.heightAnchor.constraint(equalToConstant: 200)
         ])
     }
 }

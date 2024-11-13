@@ -33,13 +33,10 @@ class VisionObjectRecognitionViewController: ViewController {
     private let minimumTimeInterval: TimeInterval = 1.0  // One second between frames
     
     override func setupAVCapture() {
-        // Create the preview view programmatically
-        previewView = UIView(frame: view.bounds)
-        previewView.contentMode = .scaleAspectFill
-        view.addSubview(previewView)
-        // print("ViewController - Preview view created and added")
+        // Set background color
+        view.backgroundColor = UIColor(red: 54/255, green: 94/255, blue: 50/255, alpha: 0.93)
         
-        // Add constraints to make preview view fill the entire view
+        // Setup preview view constraints
         previewView.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
             previewView.topAnchor.constraint(equalTo: view.topAnchor),
@@ -48,14 +45,13 @@ class VisionObjectRecognitionViewController: ViewController {
             previewView.trailingAnchor.constraint(equalTo: view.trailingAnchor)
         ])
         
-        // print("VisionObjectRecognitionViewController - setupAVCapture started")
+        // Call super setup
         super.setupAVCapture()
         
-        // print("VisionObjectRecognitionViewController - Setting up Vision components")
+        // Set up vision components
         setupLayers()
         updateLayerGeometry()
         setupVision()
-        // print("VisionObjectRecognitionViewController - Vision setup complete")
     }
     
     override func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
@@ -80,7 +76,7 @@ class VisionObjectRecognitionViewController: ViewController {
         // If already processing a frame, skip this one
         guard !isProcessingFrame else {
             // print("Skipping frame - still processing previous frame")
-            return 
+            return
         }
         
         // Mark processing started
@@ -120,7 +116,7 @@ class VisionObjectRecognitionViewController: ViewController {
             let config = MLModelConfiguration()
             config.computeUnits = .all
             
-            guard let model = try? yolo11m(configuration: config) else {
+            guard let model = try? new_11s(configuration: config) else {
                 // print("Failed to create model instance")
                 fatalError("Failed to create model instance")
             }
@@ -138,7 +134,7 @@ class VisionObjectRecognitionViewController: ViewController {
                         // multiArray:  Float32 1 × 84 × 8400 array
                         
                         self.setupLayers()
-                        // 处理 YOLO 输出并直接绘制
+                        // 理 YOLO 输出并直接绘制
                         let detections = self.detectionProcessor.processMLMultiArray(multiArray)
                         self.drawDetections(detections)
                     }
@@ -218,24 +214,23 @@ class VisionObjectRecognitionViewController: ViewController {
         let bounds = self.rootLayer.bounds
         // var scale: CGFloat = 1.0
         let scale = bounds.size.width / view.bounds.size.width
-        _ = CGAffineTransform(scaleX: scale, y: scale) 
+        _ = CGAffineTransform(scaleX: scale, y: scale)
         self.detectionOverlay.setAffineTransform(CGAffineTransform(scaleX: scale, y: -scale))
         self.detectionOverlay.position = CGPoint(x: bounds.midX, y: bounds.midY)
     }
     
     func createTextLayerInBounds(_ bounds: CGRect, identifier: String, confidence: VNConfidence) -> CATextLayer {
         let textLayer = CATextLayer()
-        let labelText = String(format: "%@ %.1f%%",
-                        identifier,
-                        confidence * 100)
-        textLayer.string = labelText    
+        let labelText = String(format: "%@ %.1f%%", identifier, confidence * 100)
+        textLayer.string = labelText
+        textLayer.font = UIFont(name: "Jost", size: 14)
         textLayer.fontSize = 14
         textLayer.foregroundColor = UIColor.white.cgColor
-        textLayer.backgroundColor = UIColor.black.cgColor
+        textLayer.backgroundColor = UIColor(red: 54/255, green: 94/255, blue: 50/255, alpha: 0.8).cgColor
         textLayer.alignmentMode = .center
-        textLayer.bounds = CGRect(x: 0, y: 0, width: bounds.size.width, height: 20)
-        textLayer.position = CGPoint(x: bounds.midX, y: bounds.minY - 10)
-
+        textLayer.cornerRadius = 5
+        textLayer.masksToBounds = true
+        
         let textWidth = (labelText as NSString).size(withAttributes: [
                 .font: UIFont.systemFont(ofSize: 20)
             ]).width + 20
@@ -251,21 +246,24 @@ class VisionObjectRecognitionViewController: ViewController {
     }
 
     @objc override func showAddIngredientAlert(for foodItem: String) {
-        print("📱 showAddIngredientAlert called for \(foodItem)")
         DispatchQueue.main.async {
-            print("📱 Creating alert for \(foodItem)")
             let alert = UIAlertController(
                 title: "Add Ingredient",
                 message: "How many \(foodItem)(s) would you like to add?",
                 preferredStyle: .alert
             )
             
+            // Style the alert
+            alert.view.tintColor = UIColor(red: 54/255, green: 94/255, blue: 50/255, alpha: 1)
+            
+            // Style the text field
             alert.addTextField { textField in
                 textField.keyboardType = .numberPad
                 textField.placeholder = "Enter quantity"
+                textField.font = UIFont(name: "Jost", size: 16)
             }
             
-            alert.addAction(UIAlertAction(title: "Add", style: .default) { [weak self] _ in
+            let addAction = UIAlertAction(title: "Add", style: .default) { [weak self] _ in
                 guard let self = self,
                       let quantityText = alert.textFields?.first?.text,
                       let quantity = Int(quantityText), quantity > 0 else {
@@ -276,14 +274,14 @@ class VisionObjectRecognitionViewController: ViewController {
                 print("📱 Adding ingredient: \(foodItem) with quantity: \(quantity)")
                 self.addIngredient(name: foodItem, quantity: quantity)
                 self.detectionProcessor.markIngredientAsAdded(foodItem)
-            })
-            
-            alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
-            
-            print("📱 Presenting alert")
-            self.present(alert, animated: true) {
-                print("📱 Alert presented successfully")
             }
+            
+            let cancelAction = UIAlertAction(title: "Cancel", style: .cancel)
+            
+            alert.addAction(addAction)
+            alert.addAction(cancelAction)
+            
+            self.present(alert, animated: true)
         }
     }
 
@@ -300,7 +298,14 @@ class VisionObjectRecognitionViewController: ViewController {
     }
 
     private func addIngredient(name: String, quantity: Int) {
-        ingredientsList.append((name: name, quantity: quantity))
-        ingredientsTableView.reloadData()
+        // Assuming each row is 60 points high and we have 10 points padding
+        let maxVisibleRows = Int(floor((200 - 20) / 60)) // 200 is table height, 20 is total padding
+        
+        if ingredientsList.count < maxVisibleRows {
+            ingredientsList.append((name: name, quantity: quantity))
+            ingredientsTableView.reloadData()
+        } else {
+            showErrorAlert(message: "Maximum ingredients reached. Please delete some items first.")
+        }
     }
 }

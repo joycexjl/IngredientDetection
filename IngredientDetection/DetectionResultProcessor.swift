@@ -20,37 +20,45 @@ enum Constants {
     static let defaultMaxDetections = 10
     static let defaultIOUThreshold: Float = 0.45
     
-    static let people = Set(["person"])
-    static let vehicles = Set(["bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat"])
-    static let animals = Set(["bird", "cat", "dog", "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe"])
-    static let food = Set(["banana", "apple", "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake"])
-       
+    static let produce = Set(["apple", "artichoke", "asparagus", "avocado", "bamboo_shoots", "banana", 
+                            "beetroot", "broccoli", "cabbage", "carrot", "cauliflower", "cucumber", 
+                            "eggplant", "garlic", "ginger", "lettuce", "mushroom", "okra", "onion", 
+                            "peas", "pepper", "potato", "pumpkin", "radish", "spinach", "tomato", 
+                            "turnip", "watermelon", "zucchini"])
+    
+    static let protein = Set(["beef", "chicken", "egg", "fish", "pork", "poultry", "seafood", "tofu"])
+    
+    static let grains = Set(["bread", "cereal", "noodles", "pasta", "rice_product", "wheat"])
+    
+    static let dairy = Set(["butter", "cheese", "dairy"])
+    
     static let classLabels = [
-        "person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat",
-        "traffic light", "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat",
-        "dog", "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe", "backpack",
-        "umbrella", "handbag", "tie", "suitcase", "frisbee", "skis", "snowboard", "sports ball",
-        "kite", "baseball bat", "baseball glove", "skateboard", "surfboard", "tennis racket",
-        "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple",
-        "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair",
-        "couch", "potted plant", "bed", "dining table", "toilet", "tv", "laptop", "mouse",
-        "remote", "keyboard", "cell phone", "microwave", "oven", "toaster", "sink", "refrigerator",
-        "book", "clock", "vase", "scissors", "teddy bear", "hair drier", "toothbrush"
+        "apple", "artichoke", "asparagus", "avocado", "bamboo_shoots", "banana", "beans", "beef",
+        "beetroot", "bread", "broccoli", "butter", "cabbage", "cactus", "carrot", "cassava",
+        "cauliflower", "cereal", "cheese", "chicken", "chocolate", "citrus", "coffee", "corn",
+        "cucumber", "dairy", "egg", "eggplant", "fish", "fruit", "garlic", "ginger", "gourd",
+        "grape", "herbs", "honey", "jackfruit", "juice", "kimchi", "kiwi", "leafy_greens",
+        "lentils", "lettuce", "mango", "meat", "moringa", "mushroom", "noodles", "nuts", "oil",
+        "okra", "olive", "onion", "papaya", "pasta", "pear", "peas", "pepper", "pickle",
+        "pineapple", "plum", "pomegranate", "pork", "potato", "poultry", "processed_food",
+        "processed_meat", "pumpkin", "radish", "rice_product", "sauce", "seafood", "seasoning",
+        "seaweed", "spice", "spinach", "strawberry", "taro", "tofu", "tomato", "turnip",
+        "watermelon", "wheat", "zucchini"
     ]
     
-    static func category(for label: String) ->  UIColor  {
+    static func category(for label: String) -> UIColor {
         assert(classLabels.contains(label), "Label '\(label)' not found in classLabels")
         switch label {
-            case _ where people.contains(label):
-                return UIColor.red
-            case _ where vehicles.contains(label):
-                return UIColor.blue
-            case _ where animals.contains(label):
-                return UIColor.green
-            case _ where food.contains(label):
-                return UIColor.orange
-            default:
-                return UIColor.yellow
+        case _ where produce.contains(label):
+            return UIColor.green
+        case _ where protein.contains(label):
+            return UIColor.red
+        case _ where grains.contains(label):
+            return UIColor.brown
+        case _ where dairy.contains(label):
+            return UIColor.white
+        default:
+            return UIColor.orange
         }
     }
     
@@ -165,7 +173,7 @@ class DetectionResultProcessor {
         return detections
             .sorted { $0.confidence > $1.confidence }
             .prefix(maxDetections)
-            .map { $0 } 
+            .map { $0 }
     }
     
     private func applyNMS(to detections: [Detection]) -> [Detection] {
@@ -216,7 +224,7 @@ class DetectionResultProcessor {
         print("- Added ingredients:", addedIngredients)
         
         // Update detection times for currently visible food items
-        for detection in detections where Constants.food.contains(detection.classLabel) {
+        for detection in detections {
             let foodItem = detection.classLabel
             
             if !addedIngredients.contains(foodItem) {
