@@ -16,32 +16,56 @@ struct VideoContentView: View {
     var body: some View {
         Group {
             if let videoURL = videoURL {
-                // 显示视频检测界面
+                // Video detection view
                 VideoViewControllerRepresentable(videoURL: videoURL)
                     .edgesIgnoringSafeArea(.all)
             } else {
-                // 显示视频选择界面
-                VStack(spacing: 20) {
+                // Video selection view
+                VStack(spacing: 30) {
+                    Text("Video Detection")
+                        .font(.custom("Jost", size: 34))
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                    
                     PhotosPicker(
                         selection: $selectedItem,
                         matching: .videos,
                         photoLibrary: .shared()
                     ) {
-                        VStack(spacing: 12) {
+                        VStack(spacing: 16) {
                             Image(systemName: "video.badge.plus")
-                                .font(.system(size: 50))
-                                .foregroundColor(.blue)
+                                .font(.system(size: 40))
+                                .foregroundColor(.white)
                             
-                            Text("选择视频")
-                                .font(.headline)
+                            Text("Select Video")
+                                .font(.custom("Jost", size: 16))
+                                .foregroundColor(.white)
+                            
+                            Text("Choose a video to detect ingredients")
+                                .font(.custom("Jost", size: 14))
+                                .foregroundColor(.white.opacity(0.8))
                         }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .padding(.vertical, 30)
+                        .padding(.horizontal, 20)
+                        .frame(maxWidth: .infinity)
+                        .background(Color.white.opacity(0.2))
+                        .cornerRadius(12)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.white.opacity(0.3), lineWidth: 1)
+                        )
                     }
+                    .padding(.horizontal)
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(
+                    Color(red: 54/255, green: 94/255, blue: 50/255)
+                        .opacity(0.93)
+                        .ignoresSafeArea()
+                )
                 .onChange(of: selectedItem) { newItem in
                     Task {
                         if let data = try? await newItem?.loadTransferable(type: Data.self) {
-                            // 保存视频到临时目录
                             let tempURL = FileManager.default.temporaryDirectory
                                 .appendingPathComponent(UUID().uuidString)
                                 .appendingPathExtension("mov")

@@ -18,17 +18,40 @@ struct IngredientDetectionApp: App {
 }
 
 struct MainView: View {
+    init() {
+        // Customize the navigation bar appearance
+        let appearance = UINavigationBarAppearance()
+        appearance.configureWithTransparentBackground()
+        appearance.setBackIndicatorImage(
+            UIImage(systemName: "chevron.left")?.withTintColor(.white, renderingMode: .alwaysOriginal),
+            transitionMaskImage: UIImage(systemName: "chevron.left")?.withTintColor(.white, renderingMode: .alwaysOriginal)
+        )
+        appearance.backButtonAppearance.normal.titleTextAttributes = [.foregroundColor: UIColor.clear]
+        
+        // Add padding to move the back button away from the edge
+        appearance.buttonAppearance.normal.titlePositionAdjustment = UIOffset(horizontal: 10, vertical: 0)
+        
+        UINavigationBar.appearance().standardAppearance = appearance
+        UINavigationBar.appearance().compactAppearance = appearance
+        UINavigationBar.appearance().scrollEdgeAppearance = appearance
+        UINavigationBar.appearance().tintColor = .white
+        
+        // Add leading padding to the navigation bar items
+        UINavigationBar.appearance().layoutMargins.left = 20
+    }
+    
     var body: some View {
         NavigationView {
             VStack(spacing: 30) {
                 Text("Ingredient Detection")
-                    .font(.largeTitle)
+                    .font(.custom("Jost", size: 34))
                     .fontWeight(.bold)
+                    .foregroundColor(.white)
                 
                 NavigationLink(destination: CameraView()) {
                     DetectionOptionButton(
-                        title: "Camera Detection",
-                        subtitle: "Detect ingredients from camera",
+                        title: "Real-Time Detection",
+                        subtitle: "Detect ingredients from live session",
                         systemImage: "camera.fill"
                     )
                 }
@@ -42,7 +65,14 @@ struct MainView: View {
                 }
             }
             .padding()
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(
+                Color(red: 54/255, green: 94/255, blue: 50/255)
+                    .opacity(0.93)
+                    .ignoresSafeArea()
+            )
         }
+        .navigationViewStyle(StackNavigationViewStyle())
     }
 }
 
@@ -60,10 +90,10 @@ struct DetectionOptionButton: View {
             
             VStack(alignment: .leading) {
                 Text(title)
-                    .font(.headline)
+                    .font(.custom("Jost", size: 16))
                     .foregroundColor(.white)
                 Text(subtitle)
-                    .font(.subheadline)
+                    .font(.custom("Jost", size: 14))
                     .foregroundColor(.white.opacity(0.8))
             }
             
@@ -73,9 +103,12 @@ struct DetectionOptionButton: View {
                 .foregroundColor(.white)
         }
         .padding()
-        .background(Color.blue)
+        .background(Color.white.opacity(0.2))
         .cornerRadius(12)
-        .shadow(radius: 5)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.white.opacity(0.3), lineWidth: 1)
+        )
     }
 }
 
